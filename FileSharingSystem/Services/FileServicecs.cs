@@ -114,9 +114,18 @@ public class FileService : IFileService
                                 }
                                 else if (category != "undetected")
                                 {
+                                    File.Delete(filePath);
                                     allUndetected = false; // Nếu có bất kỳ engine nào không phải là undetected, đánh dấu
                                     break; // Thoát khỏi vòng lặp
                                 }
+                                else if (category == null)
+                                {
+                                    File.Delete(filePath);
+                                    throw new IOException($"File '{file.FileName}'có thể chứa virus, không thể tải lên ! ");
+                                }
+                                
+
+                                
                             }
                         }
                         else
