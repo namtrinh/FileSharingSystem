@@ -53,18 +53,18 @@ public class FileService : IFileService
     {
         const string vtApiUrl = "https://www.virustotal.com/api/v3/files";
         const string vtApiKey = "15ea616156e895bce63de9ab04304951848fa73b3b653dd84c3f48e9e9fb9c18";
+        const int maxRetries = 5; // Số lần thử lại tối đa
+        const int delayBetweenRetries = 5000; // Độ trễ giữa mỗi lần thử lại (5 giây)
 
         using (var memoryStream = new MemoryStream())
         {
-            // Copy file vào bộ nhớ tạm
             await file.CopyToAsync(memoryStream);
-            memoryStream.Position = 0;  // Đặt lại vị trí đọc từ đầu
+            memoryStream.Position = 0;
 
             using (var httpClient = new HttpClient())
             {
                 httpClient.DefaultRequestHeaders.Add("x-apikey", vtApiKey);
 
-                // Gửi tệp lên VirusTotal
                 var content = new MultipartFormDataContent();
                 content.Add(new StreamContent(memoryStream), "file", file.FileName);
 
@@ -75,24 +75,43 @@ public class FileService : IFileService
                 var jsonResponse = JsonDocument.Parse(responseBody);
                 var analysisId = jsonResponse.RootElement.GetProperty("data").GetProperty("id").GetString();
 
-                // Kiểm tra kết quả phân tích
-                var analysisResponse = await httpClient.GetAsync($"https://www.virustotal.com/api/v3/analyses/{analysisId}");
-                analysisResponse.EnsureSuccessStatusCode();
+                // Thử lại để chờ kết quả phân tích
+                JsonDocument analysisJson = null;
+                for (int i = 0; i < maxRetries; i++)
+                {
+                    await Task.Delay(delayBetweenRetries); // Chờ một khoảng thời gian
 
-                var analysisBody = await analysisResponse.Content.ReadAsStringAsync();
-                var analysisJson = JsonDocument.Parse(analysisBody);
+                    var analysisResponse = await httpClient.GetAsync($"https://www.virustotal.com/api/v3/analyses/{analysisId}");
+
+                    if (analysisResponse.IsSuccessStatusCode)
+                    {
+                        var analysisBody = await analysisResponse.Content.ReadAsStringAsync();
+                        analysisJson = JsonDocument.Parse(analysisBody);
+
+                        if (analysisJson.RootElement.GetProperty("data").TryGetProperty("attributes", out var attributes) &&
+                            attributes.TryGetProperty("status", out var status) &&
+                            status.GetString() == "completed")
+                        {
+                            break; // Phân tích hoàn thành
+                        }
+                    }
+                }
+
+                if (analysisJson == null)
+                {
+                    throw new IOException("Virus scan could not be completed in a timely manner.");
+                }
+
+                // Kiểm tra kết quả phân tích
                 var dataElement = analysisJson.RootElement.GetProperty("data");
 
-                // Kiểm tra xem thuộc tính attributes có tồn tại không
-                if (dataElement.TryGetProperty("attributes", out var attributes))
+                if (dataElement.TryGetProperty("attributes", out var outerAttributes))
                 {
-                    // Kiểm tra xem thuộc tính results có tồn tại không
-                    if (attributes.TryGetProperty("results", out var results))
+                    if (outerAttributes.TryGetProperty("results", out var results))
                     {
-                        bool allUndetected = true;  // Biến để kiểm tra xem tất cả các công cụ quét đều là undetected
-                        bool hasResults = results.ValueKind == JsonValueKind.Object;  // Kiểm tra nếu results là một object
+                        bool allUndetected = true;
+                        bool hasResults = results.ValueKind == JsonValueKind.Object;
 
-                        // Nếu results là một đối tượng, kiểm tra từng công cụ quét
                         if (hasResults)
                         {
                             foreach (var engine in results.EnumerateObject())
@@ -100,31 +119,29 @@ public class FileService : IFileService
                                 var category = engine.Value.GetProperty("category").GetString();
                                 if (category == "malicious")
                                 {
-                                    throw new IOException($"File '{file.FileName}'có thể chứa virus, không thể tải lên!");
+                                    throw new IOException($"File '{file.FileName}' có thể chứa virus, không thể tải lên!");
                                 }
                                 else if (category != "undetected")
                                 {
-                                    allUndetected = false;  // Nếu có bất kỳ engine nào không phải là undetected, đánh dấu
+                                    allUndetected = false;
                                     break;
                                 }
                             }
                         }
                         else
                         {
-                            throw new IOException($"File '{file.FileName}'có thể chứa virus, không thể tải lên!");
+                            throw new IOException($"File '{file.FileName}' có thể chứa virus, không thể tải lên!");
                         }
 
-                        // Nếu tất cả các kết quả đều là undetected, cho phép tải lên
                         if (allUndetected)
                         {
                             var filePath = Path.Combine(_fileStoragePath, file.FileName);
 
                             if (File.Exists(filePath))
                             {
-                                throw new IOException($"File '{file.FileName}' already exists.");
+                                throw new IOException($"File '{file.FileName}' đã tồn tại.");
                             }
 
-                            // Lưu file từ bộ nhớ vào ổ đĩa chính thức
                             using (var fileStream = new FileStream(filePath, FileMode.Create))
                             {
                                 memoryStream.Position = 0;
@@ -145,7 +162,7 @@ public class FileService : IFileService
                         }
                         else
                         {
-                            throw new IOException($"File '{file.FileName}'có thể chứa virus, không thể tải lên!");
+                            throw new IOException($"File '{file.FileName}' có thể chứa virus, không thể tải lên!");
                         }
                     }
                     else
@@ -157,6 +174,7 @@ public class FileService : IFileService
                 {
                     throw new Exception("attributes not found in the analysis response.");
                 }
+
             }
         }
     }
@@ -164,8 +182,9 @@ public class FileService : IFileService
 
 
 
-// Xóa tệp theo ID
-public async Task<bool> DeleteFileAsync(int fileId)
+
+    // Xóa tệp theo ID
+    public async Task<bool> DeleteFileAsync(int fileId)
     {
         var files = await GetAllFilesAsync();
         var file = files.FirstOrDefault(f => f.Id == fileId);
