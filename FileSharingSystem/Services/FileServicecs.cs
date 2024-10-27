@@ -114,6 +114,7 @@ public class FileService : IFileService
                                 }
                                 else if (category != "undetected")
                                 {
+                                    File.Delete(filePath);
                                     allUndetected = false; // Nếu có bất kỳ engine nào không phải là undetected, đánh dấu
                                     break; // Thoát khỏi vòng lặp
                                 }
