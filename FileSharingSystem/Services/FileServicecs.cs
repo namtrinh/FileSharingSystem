@@ -106,21 +106,22 @@ public class FileService : IFileService
                         {
                             foreach (var engine in results.EnumerateObject())
                             {
-                                var category = engine.Value.GetProperty("category").GetString();
-                                if (category != "undetected")
-                                {
-                                    allUndetected = false; // Nếu có bất kỳ engine nào không phải là undetected, đánh dấu
-                                    break; // Thoát khỏi vòng lặp
-                                }
+                                var category = engine.Value.GetProperty("category").GetString();                           
                                 if (category == "malicious")
                                 {
                                     File.Delete(filePath);
                                     throw new IOException($"File '{file.FileName}'có thể chứa virus, không thể tải lên ! ");
                                 }
+                                else if (category != "undetected")
+                                {
+                                    allUndetected = false; // Nếu có bất kỳ engine nào không phải là undetected, đánh dấu
+                                    break; // Thoát khỏi vòng lặp
+                                }
                             }
                         }
                         else
                         {
+                            File.Delete(filePath);
                             // Không có kết quả quét
                             throw new IOException($"File '{file.FileName}'có thể chứa virus, không thể tải lên !");
                         }
@@ -148,11 +149,13 @@ public class FileService : IFileService
                     }
                     else
                     {
+                        File.Delete(filePath);
                         throw new Exception("results not found in the analysis response.");
                     }
                 }
                 else
                 {
+                    File.Delete(filePath);
                     throw new Exception("attributes not found in the analysis response.");
                 }
             }
