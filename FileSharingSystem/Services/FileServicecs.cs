@@ -73,51 +73,41 @@ public class FileService : IFileService
                 var jsonResponse = JsonDocument.Parse(responseBody);
                 var analysisId = jsonResponse.RootElement.GetProperty("data").GetProperty("id").GetString();
 
-                // Gửi yêu cầu phân tích
                 var analysisResponse = await httpClient.GetAsync($"https://www.virustotal.com/api/v3/analyses/{analysisId}");
-
-                if (!analysisResponse.IsSuccessStatusCode)
-                {
-                    throw new IOException("Phân tích virus không thành công.");
-                }
-
                 var analysisBody = await analysisResponse.Content.ReadAsStringAsync();
                 var analysisJson = JsonDocument.Parse(analysisBody);
 
-                // Kiểm tra kết quả phân tích
+           
                 var dataElement = analysisJson.RootElement.GetProperty("data");
 
                 if (dataElement.TryGetProperty("attributes", out var outerAttributes))
                 {
+
+
                     if (outerAttributes.TryGetProperty("results", out var results))
                     {
-                        bool allUndetected = true; // Giả định ban đầu là tất cả đều không phát hiện
+                        bool allUndetected = true;
                         bool hasResults = results.ValueKind == JsonValueKind.Object;
-
-                        if (results.TryGetProperty("status", out var status))
-                        {
-                            if (status.GetString() == "queued")
-                            {
-                                throw new IOException($"File '{file.FileName}' có thể chứa virus, không thể tải lên!");
-                            }
-                        }
-
 
                         if (hasResults)
                         {
+                            // Kiểm tra nếu không có kết quả nào
+                            if (results.EnumerateObject().Count() == 0)
+                            {
+                                throw new IOException($"File '{file.FileName}' có thể chứa virus, không thể tải lên! (Kết quả phân tích rỗng.)");
+                            }
+
                             foreach (var engine in results.EnumerateObject())
                             {
                                 var category = engine.Value.GetProperty("category").GetString();
 
-                                // Nếu có bất kỳ engine nào có kết quả "undetected", không thay đổi giá trị
-                                if (category == "undetected" || category == "type-unsupported" || category == "harmless" || category == "timeout" || category =="failure" || category== "confirmed-timeout")
+                                if (category == "undetected" || category == "type-unsupported" || category == "harmless" || category == "timeout" || category == "failure" || category == "confirmed-timeout")
                                 {
-                                    // Chỉ cần giữ nguyên allUndetected = true
                                     continue;
                                 }
                                 else
                                 {
-                                    allUndetected = false; 
+                                    allUndetected = false;
                                     throw new IOException($"File '{file.FileName}' có thể chứa virus, không thể tải lên!");
                                 }
                             }
@@ -127,7 +117,6 @@ public class FileService : IFileService
                             throw new IOException($"File '{file.FileName}' có thể chứa virus, không thể tải lên!");
                         }
 
-                        // Nếu tất cả đều "undetected", cho phép tải lên
                         if (allUndetected)
                         {
                             var filePath = Path.Combine(_fileStoragePath, file.FileName);
@@ -136,13 +125,11 @@ public class FileService : IFileService
                             {
                                 throw new IOException($"File '{file.FileName}' đã tồn tại.");
                             }
-
                             using (var fileStream = new FileStream(filePath, FileMode.Create))
                             {
                                 memoryStream.Position = 0;
                                 await memoryStream.CopyToAsync(fileStream);
                             }
-
                             var fileExtension = Path.GetExtension(file.FileName).ToLowerInvariant();
                             var fileType = FileTypeHelper.GetFileType(fileExtension);
 
@@ -164,6 +151,7 @@ public class FileService : IFileService
                     {
                         throw new Exception("results not found in the analysis response.");
                     }
+
                 }
                 else
                 {
