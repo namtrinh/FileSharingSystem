@@ -91,7 +91,7 @@ public class FileService : IFileService
                 {
                     if (outerAttributes.TryGetProperty("results", out var results))
                     {
-                        bool allUndetected = false; // Giả định ban đầu là tất cả đều không phát hiện
+                        bool allUndetected = true; // Giả định ban đầu là tất cả đều không phát hiện
                         bool hasResults = results.ValueKind == JsonValueKind.Object;
 
                         if (hasResults)
@@ -100,21 +100,22 @@ public class FileService : IFileService
                             {
                                 var category = engine.Value.GetProperty("category").GetString();
 
-                                // Nếu có bất kỳ engine nào phát hiện là "malicious"
-                                if (category == "malicious")
+                                // Nếu có bất kỳ engine nào phát hiện là "malicious" hoặc "suspicious"
+                                if (category == "malicious" || category == "suspicious")
                                 {
                                     throw new IOException($"File '{file.FileName}' có thể chứa virus, không thể tải lên!");
                                 }
 
-                                // Nếu tìm thấy ít nhất một engine có kết quả "undetected"
-                                if (category == "undetected")
+                                // Nếu có bất kỳ engine nào có kết quả "undetected", không thay đổi giá trị
+                                if (category == "undetected" || category == "type-unsupported" || category == "harmless")
                                 {
-                                    allUndetected = true; // Có ít nhất một engine cho kết quả không phát hiện
+                                    // Chỉ cần giữ nguyên allUndetected = true
+                                    continue;
                                 }
-                                else if (category != "undetected" && category != "malicious")
+                                else
                                 {
+                                    allUndetected = false; // Nếu không phát hiện và không phải là undetected, đánh dấu không an toàn
                                     throw new IOException($"File '{file.FileName}' có thể chứa virus, không thể tải lên!");
-                                    allUndetected = false;   // mía không được xóa dòng này nếu không là lỗi ngay :vvvvvvvv
                                 }
                             }
                         }
@@ -166,12 +167,8 @@ public class FileService : IFileService
                     throw new Exception("attributes not found in the analysis response.");
                 }
             }
-        } 
+        }
     }
-
-
-
-
 
     // Xóa tệp theo ID
     public async Task<bool> DeleteFileAsync(int fileId)
