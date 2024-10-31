@@ -53,8 +53,6 @@ public class FileService : IFileService
     {
         const string vtApiUrl = "https://www.virustotal.com/api/v3/files";
         const string vtApiKey = "15ea616156e895bce63de9ab04304951848fa73b3b653dd84c3f48e9e9fb9c18";
-        const int maxRetries = 5; // Số lần thử lại tối đa
-        const int delayBetweenRetries = 5000; // Độ trễ giữa mỗi lần thử lại (5 giây)
 
         using (var memoryStream = new MemoryStream())
         {
@@ -75,32 +73,16 @@ public class FileService : IFileService
                 var jsonResponse = JsonDocument.Parse(responseBody);
                 var analysisId = jsonResponse.RootElement.GetProperty("data").GetProperty("id").GetString();
 
-                // Thử lại để chờ kết quả phân tích
-                JsonDocument analysisJson = null;
-                for (int i = 0; i < maxRetries; i++)
+                // Gửi yêu cầu phân tích
+                var analysisResponse = await httpClient.GetAsync($"https://www.virustotal.com/api/v3/analyses/{analysisId}");
+
+                if (!analysisResponse.IsSuccessStatusCode)
                 {
-                    await Task.Delay(delayBetweenRetries); // Chờ một khoảng thời gian
-
-                    var analysisResponse = await httpClient.GetAsync($"https://www.virustotal.com/api/v3/analyses/{analysisId}");
-
-                    if (analysisResponse.IsSuccessStatusCode)
-                    {
-                        var analysisBody = await analysisResponse.Content.ReadAsStringAsync();
-                        analysisJson = JsonDocument.Parse(analysisBody);
-
-                        if (analysisJson.RootElement.GetProperty("data").TryGetProperty("attributes", out var attributes) &&
-                            attributes.TryGetProperty("status", out var status) &&
-                            status.GetString() == "completed")
-                        {
-                            break; // Phân tích hoàn thành
-                        }
-                    }
+                    throw new IOException("Phân tích virus không thành công.");
                 }
 
-                if (analysisJson == null)
-                {
-                    throw new IOException("Virus scan could not be completed in a timely manner.");
-                }
+                var analysisBody = await analysisResponse.Content.ReadAsStringAsync();
+                var analysisJson = JsonDocument.Parse(analysisBody);
 
                 // Kiểm tra kết quả phân tích
                 var dataElement = analysisJson.RootElement.GetProperty("data");
@@ -109,7 +91,7 @@ public class FileService : IFileService
                 {
                     if (outerAttributes.TryGetProperty("results", out var results))
                     {
-                        bool allUndetected = true;
+                        bool allUndetected = false; // Giả định ban đầu là tất cả đều không phát hiện
                         bool hasResults = results.ValueKind == JsonValueKind.Object;
 
                         if (hasResults)
@@ -117,14 +99,22 @@ public class FileService : IFileService
                             foreach (var engine in results.EnumerateObject())
                             {
                                 var category = engine.Value.GetProperty("category").GetString();
+
+                                // Nếu có bất kỳ engine nào phát hiện là "malicious"
                                 if (category == "malicious")
                                 {
                                     throw new IOException($"File '{file.FileName}' có thể chứa virus, không thể tải lên!");
                                 }
-                                else if (category != "undetected")
+
+                                // Nếu tìm thấy ít nhất một engine có kết quả "undetected"
+                                if (category == "undetected")
                                 {
-                                    allUndetected = false;
-                                    break;
+                                    allUndetected = true; // Có ít nhất một engine cho kết quả không phát hiện
+                                }
+                                else if (category != "undetected" && category != "malicious")
+                                {
+                                    throw new IOException($"File '{file.FileName}' có thể chứa virus, không thể tải lên!");
+                                    allUndetected = false;   // mía không được xóa dòng này nếu không là lỗi ngay :vvvvvvvv
                                 }
                             }
                         }
@@ -133,6 +123,7 @@ public class FileService : IFileService
                             throw new IOException($"File '{file.FileName}' có thể chứa virus, không thể tải lên!");
                         }
 
+                        // Nếu tất cả đều "undetected", cho phép tải lên
                         if (allUndetected)
                         {
                             var filePath = Path.Combine(_fileStoragePath, file.FileName);
@@ -174,9 +165,8 @@ public class FileService : IFileService
                 {
                     throw new Exception("attributes not found in the analysis response.");
                 }
-
             }
-        }
+        } 
     }
 
 

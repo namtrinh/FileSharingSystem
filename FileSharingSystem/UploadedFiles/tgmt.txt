@@ -1,0 +1,123 @@
+import tkinter as tk
+from tkinter import filedialog, messagebox
+from PIL import Image, ImageTk
+import cv2
+import numpy as np
+
+class ImageSegmentationApp:
+    def __init__(self, master):
+        self.master = master
+        self.master.title("App")
+        self.master.geometry("1200x700")
+        self.image_path = None
+        self.input_image = None
+        self.processed_image = None
+        self.segmented_regions = []
+
+        # Header
+        self.header_frame = tk.Frame(master, bg="#2d2d2d")
+        self.header_frame.pack(side=tk.TOP, fill=tk.X, pady=10)
+        self.main_title = tk.Label(self.header_frame, text="Nhóm 10: Split And Merge Algorithm",
+                                   font=("Arial", 24, "bold"), bg="#2d2d2d", fg="#f8f8f8")
+        self.main_title.pack(pady=5)
+
+        # Main content
+        self.content_frame = tk.Frame(master, bg="#f8f8f8")
+        self.content_frame.pack(fill=tk.BOTH, expand=True, padx=20, pady=20)
+
+        # Control panel
+        self.control_frame = tk.Frame(self.content_frame, bg="#f8f8f8")
+        self.control_frame.pack(pady=10)
+        self.load_image_button = tk.Button(self.control_frame, text="Load Image", command=self.load_image,
+                                           width=15, font=("Arial", 12, "bold"), bg="#1d3557", fg="white")
+        self.load_image_button.pack(side=tk.LEFT, padx=10)
+        self.threshold_label = tk.Label(self.control_frame, text="Threshold:", font=("Arial", 12, "bold"), bg="#f8f8f8")
+        self.threshold_label.pack(side=tk.LEFT, padx=10)
+        self.threshold_input = tk.Entry(self.control_frame, font=("Arial", 12, "bold"), width=5, bg="#f0f0f0", fg="black", bd=2)
+        self.threshold_input.pack(side=tk.LEFT, padx=10)
+        self.threshold_input.insert(0, "20")
+        self.process_image_button = tk.Button(self.control_frame, text="Process Image", command=self.segment_and_merge,
+                                              state=tk.DISABLED, width=15, font=("Arial", 12, "bold"),
+                                              bg="#457b9d", fg="white")
+        self.process_image_button.pack(side=tk.LEFT, padx=10)
+
+        # Image display panel
+        self.display_frame = tk.Frame(self.content_frame, bg="#f8f8f8")
+        self.display_frame.pack(fill=tk.BOTH, expand=True)
+        # Set up the display frames to fill space equally
+        self.display_frame.columnconfigure(0, weight=1)
+        self.display_frame.columnconfigure(1, weight=1)
+        self.display_frame.rowconfigure(1, weight=1)
+        self.original_image_label = tk.Label(self.display_frame, text="Original Image", font=("Arial", 14, "bold"),
+                                             bg="#f8f8f8")
+        self.original_image_label.grid(row=0, column=0, padx=20, pady=10, sticky='ew')
+        self.original_image_frame = tk.Frame(self.display_frame, bg="#d3d3d3", width=500, height=500)
+        self.original_image_frame.grid(row=1, column=0, padx=20, pady=10, sticky='nsew')
+        self.original_image_frame.pack_propagate(False)
+        self.original_image_display = tk.Label(self.original_image_frame, bg="#d3d3d3")
+        self.original_image_display.pack(fill=tk.BOTH, expand=True)
+        self.result_image_label = tk.Label(self.display_frame, text="Processed Image", font=("Arial", 14, "bold"),
+                                           bg="#f8f8f8")
+        self.result_image_label.grid(row=0, column=1, padx=20, pady=10, sticky='ew')
+        self.result_image_frame = tk.Frame(self.display_frame, bg="#d3d3d3", width=500, height=500)
+        self.result_image_frame.grid(row=1, column=1, padx=20, pady=10, sticky='nsew')
+        self.result_image_frame.pack_propagate(False)
+        self.result_image_display = tk.Label(self.result_image_frame, bg="#d3d3d3")
+        self.result_image_display.pack(fill=tk.BOTH, expand=True)
+
+    def load_image(self):
+        self.image_path = filedialog.askopenfilename()
+        if self.image_path:
+            self.input_image = cv2.imread(self.image_path)
+            if self.input_image is None:
+                messagebox.showerror("Error", "Unable to load image!")
+                return
+            self.processed_image = self.input_image.copy()
+            self.display_image(self.input_image, self.original_image_display)
+            self.process_image_button.config(state=tk.NORMAL)
+            self.segmented_regions = [(0, 0, self.input_image.shape[1], self.input_image.shape[0])]
+
+    def display_image(self, image, label):
+        pil_image = Image.fromarray(cv2.cvtColor(image, cv2.COLOR_BGR2RGB))
+        # Get dimensions of the frame containing the label
+        label.update_idletasks()
+        width = label.winfo_width()
+        height = label.winfo_height()
+        pil_image = pil_image.resize((width, height), Image.LANCZOS)
+        tk_image = ImageTk.PhotoImage(pil_image)
+        label.config(image=tk_image)
+        label.image = tk_image
+
+    def segment_and_merge(self):
+        try:
+            threshold_value = int(self.threshold_input.get())
+            self.segmented_regions.clear()
+            self.quadtree_split(0, 0, self.input_image.shape[1], self.input_image.shape[0], threshold_value)
+            # Thực hiện gộp sau khi tách
+            merged_image = self.processed_image.copy()
+            for (x, y, w, h, mean) in self.segmented_regions:
+                merged_image[y:y + h, x:x + w] = int(mean)
+            self.processed_image = merged_image
+            # Hiển thị kết quả sau khi gộp
+            self.display_image(self.processed_image, self.result_image_display)
+        except ValueError:
+            messagebox.showerror("Error", "Please enter a valid integer for threshold!")
+
+
+    def quadtree_split(self, x, y, w, h, threshold):
+        region = self.input_image[y:y + h, x:x + w]
+        mean, stddev = cv2.meanStdDev(region)[:2]
+        if stddev[0][0] < threshold or w <= 1 or h <= 1:
+            self.segmented_regions.append((x, y, w, h, mean[0][0]))
+        else:
+            half_width, half_height = w // 2, h // 2
+            self.quadtree_split(x, y, half_width, half_height, threshold)
+            self.quadtree_split(x + half_width, y, w - half_width, half_height, threshold)
+            self.quadtree_split(x, y + half_height, half_width, h - half_height, threshold)
+            self.quadtree_split(x + half_width, y + half_height, w - half_width, h - half_height, threshold)
+
+
+if __name__ == "__main__":
+    root = tk.Tk()
+    app = ImageSegmentationApp(root)
+    root.mainloop()
