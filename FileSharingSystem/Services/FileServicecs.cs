@@ -94,27 +94,30 @@ public class FileService : IFileService
                         bool allUndetected = true; // Giả định ban đầu là tất cả đều không phát hiện
                         bool hasResults = results.ValueKind == JsonValueKind.Object;
 
+                        if (results.TryGetProperty("status", out var status))
+                        {
+                            if (status.GetString() == "queued")
+                            {
+                                throw new IOException($"File '{file.FileName}' có thể chứa virus, không thể tải lên!");
+                            }
+                        }
+
+
                         if (hasResults)
                         {
                             foreach (var engine in results.EnumerateObject())
                             {
                                 var category = engine.Value.GetProperty("category").GetString();
 
-                                // Nếu có bất kỳ engine nào phát hiện là "malicious" hoặc "suspicious"
-                                if (category == "malicious" || category == "suspicious")
-                                {
-                                    throw new IOException($"File '{file.FileName}' có thể chứa virus, không thể tải lên!");
-                                }
-
                                 // Nếu có bất kỳ engine nào có kết quả "undetected", không thay đổi giá trị
-                                if (category == "undetected" || category == "type-unsupported" || category == "harmless")
+                                if (category == "undetected" || category == "type-unsupported" || category == "harmless" || category == "timeout" || category =="failure" || category== "confirmed-timeout")
                                 {
                                     // Chỉ cần giữ nguyên allUndetected = true
                                     continue;
                                 }
                                 else
                                 {
-                                    allUndetected = false; // Nếu không phát hiện và không phải là undetected, đánh dấu không an toàn
+                                    allUndetected = false; 
                                     throw new IOException($"File '{file.FileName}' có thể chứa virus, không thể tải lên!");
                                 }
                             }
