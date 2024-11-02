@@ -8,6 +8,7 @@
         public DateTime UploadedAt { get; set; }
         public long FileSize { get; set; }
         public string FileType { get; set; }
+        public string UserId { get; set; }
     }
 
     public static class FileSizeFormatter

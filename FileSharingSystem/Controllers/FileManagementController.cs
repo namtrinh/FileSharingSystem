@@ -4,6 +4,7 @@ using Microsoft.AspNetCore.Http;
 using Microsoft.AspNetCore.Mvc;
 using System.Threading.Tasks;
 using System.IO;
+using System.Security.Claims;
 
 [Authorize]
 public class FileManagementController : Controller
@@ -23,6 +24,12 @@ public class FileManagementController : Controller
             model = new List<FileModel>();
         }
         return View(model);
+    }
+    public async Task<IActionResult> UserFiles()
+    {
+        var userId = User.FindFirstValue(ClaimTypes.NameIdentifier); // Lấy ID người dùng từ Claims
+        var model = await _fileService.GetFilesByUserIdAsync(userId);
+        return View(model); // Trả về danh sách tệp của người dùng
     }
 
     public async Task<IActionResult> Open(int id)
@@ -50,17 +57,14 @@ public class FileManagementController : Controller
     }
 
 
-
-
     [HttpPost]
     public async Task<IActionResult> Upload(IFormFile file)
     {
         // Maximum file size allowed (5MB)
-        const long MaxFileSize = 5 * 1024; // 5MB
+        const long MaxFileSize = 5 * 1024 * 1024; // 5MB
 
         // Danh sách các phần mở rộng tệp không được phép tải lên
-        var forbiddenExtensions = new[] { ".bat", ".sh", ".py" };
-
+        var forbiddenExtensions = new[] { ".bat", ".sh", ".py", ".exe" };
 
         // Kiểm tra tệp có được chọn không
         if (file == null || file.Length == 0)
@@ -88,9 +92,12 @@ public class FileManagementController : Controller
             return View(model);
         }
 
-        await _fileService.UploadFileAsync(file);
+        var userId = User.FindFirstValue(ClaimTypes.NameIdentifier); // Lấy ID người dùng từ Claims
+        await _fileService.UploadFileAsync(file, userId); // Gọi UploadFileAsync với userId
+        TempData["SuccessMessage"] = "Đã cập nhật thành công tệp!";
         return RedirectToAction("Index", "Home");
     }
+
 
 
 
@@ -122,9 +129,29 @@ public class FileManagementController : Controller
 
     public async Task<IActionResult> Delete(int id)
     {
+        // Lấy ID người dùng từ Claims
+        var userId = User.FindFirstValue(ClaimTypes.NameIdentifier);
+
+        // Tìm kiếm tệp dựa trên fileId
+        var file = await _fileService.GetFileByIdAsync(id);
+
+        if (file == null)
+        {
+            return NotFound(); // Trả về 404 nếu không tìm thấy tệp
+        }
+
+        // Kiểm tra xem người dùng có quyền xóa tệp không
+        if (file.UserId != userId) // Giả định rằng file.UserId lưu ID của người dùng đã tải lên
+        {
+            TempData["ErrorMessage"] = "Bạn không có quyền xóa tệp này."; // Lưu thông báo vào TempData
+            return RedirectToAction("Index"); // Chuyển hướng về trang chính
+        }
+
         await _fileService.DeleteFileAsync(id);
         return RedirectToAction("Index");
     }
+
+
 
     // Hàm xác định Content-Type dựa vào phần mở rộng của tệp
     private string GetContentType(string fileName)

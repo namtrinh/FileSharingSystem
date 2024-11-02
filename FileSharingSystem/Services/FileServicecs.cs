@@ -6,220 +6,102 @@ using System.Threading.Tasks;
 using FileSharingSystem.Models;
 using Microsoft.AspNetCore.Http;
 using Microsoft.EntityFrameworkCore;
-using Org.BouncyCastle.Utilities;
+using System.Net.Http;
+using FileSharingSystem.Data;
 
 public interface IFileService
 {
     Task<List<FileModel>> GetAllFilesAsync();
-    Task<FileModel> UploadFileAsync(IFormFile file);
+    Task<FileModel> UploadFileAsync(IFormFile file, string userId);
     Task<bool> DeleteFileAsync(int fileId);
     Task<Stream> DownloadFileAsync(int fileId);
     Task<FileModel> GetFileByIdAsync(int id);
+    Task<List<FileModel>> GetFilesByUserIdAsync(string userId);
 }
 
 public class FileService : IFileService
 {
     private readonly string _fileStoragePath;
+    private readonly ApplicationDbContext _context;
 
-    // Constructor để khởi tạo đường dẫn lưu trữ tệp
-    public FileService(string fileStoragePath)
+    public FileService(string fileStoragePath, ApplicationDbContext context)
     {
         _fileStoragePath = fileStoragePath;
+        _context = context;
 
-        // Tạo thư mục nếu không tồn tại
         if (!Directory.Exists(_fileStoragePath))
         {
             Directory.CreateDirectory(_fileStoragePath);
         }
     }
 
-    // Lấy danh sách tất cả các tệp
     public async Task<List<FileModel>> GetAllFilesAsync()
     {
-        // Lấy tất cả tệp trong thư mục lưu trữ và chuyển đổi thành danh sách FileModel với Id duy nhất
-        var files = Directory.GetFiles(_fileStoragePath)
-            .Select((filePath, index) => new FileModel
-            {
-                Id = index, // Gán Id là chỉ mục của tệp trong danh sách, duy nhất cho mỗi lần tải lại
-                FileName = Path.GetFileName(filePath),
-                FilePath = filePath,
-                UploadedAt = System.IO.File.GetCreationTime(filePath),
-                FileSize = new FileInfo(filePath).Length // Lấy kích thước tệp
-            })
-            .ToList();
-
-        return await Task.FromResult(files);
+        return await _context.Files.ToListAsync(); // Lấy tất cả các tệp từ database
     }
 
-    public async Task<FileModel> GetFileByIdAsync(int id)
+    public async Task<FileModel> UploadFileAsync(IFormFile file, string userId)
     {
-        var files = await GetAllFilesAsync(); // Lấy tất cả tệp
-        var file = files.FirstOrDefault(f => f.Id == id); // Tìm tệp theo ID
-
-        return file; // Trả về tệp hoặc null nếu không tìm thấy
-    }
-
-
-    // Tải lên tệp
-    public async Task<FileModel> UploadFileAsync(IFormFile file)
-    {
-        const string vtApiUrl = "https://www.virustotal.com/api/v3/files";
-        const string vtApiKey = "15ea616156e895bce63de9ab04304951848fa73b3b653dd84c3f48e9e9fb9c18";
+        // Kiểm tra xem tệp có hợp lệ không
+        if (file == null || file.Length == 0)
+            throw new ArgumentException("File is not valid.");
 
         var allowedImageExtensions = new List<string> { ".jpg", ".jpeg", ".png", ".gif", ".bmp" };
         var fileExtension = Path.GetExtension(file.FileName).ToLowerInvariant();
 
-        // Nếu là file hình ảnh, bỏ qua bước quét virus
-        if (allowedImageExtensions.Contains(fileExtension))
+        // Tạo đường dẫn tệp
+        var filePath = Path.Combine(_fileStoragePath, file.FileName);
+
+        // Kiểm tra xem tệp đã tồn tại chưa
+        if (File.Exists(filePath))
+            throw new IOException($"File '{file.FileName}' đã tồn tại.");
+
+        // Tải lên tệp
+        using (var fileStream = new FileStream(filePath, FileMode.Create))
         {
-            var filePath = Path.Combine(_fileStoragePath, file.FileName);
-
-            if (File.Exists(filePath))
-            {
-                throw new IOException($"File '{file.FileName}' đã tồn tại.");
-            }
-
-            using (var fileStream = new FileStream(filePath, FileMode.Create))
-            {
-                await file.CopyToAsync(fileStream);
-            }
-
-            var fileType = FileTypeHelper.GetFileType(fileExtension);
-
-            return new FileModel
-            {
-                FileName = file.FileName,
-                FilePath = filePath,
-                UploadedAt = DateTime.Now,
-                FileSize = file.Length,
-                FileType = fileType
-            };
+            await file.CopyToAsync(fileStream);
         }
 
-        using (var memoryStream = new MemoryStream())
+        var fileType = FileTypeHelper.GetFileType(fileExtension);
+        var fileModel = new FileModel
         {
-            await file.CopyToAsync(memoryStream);
-            memoryStream.Position = 0;
+            FileName = file.FileName,
+            FilePath = filePath,
+            UploadedAt = DateTime.Now,
+            FileSize = file.Length,
+            FileType = fileType,
+            UserId = userId // Gán ID người dùng
+        };
 
-            using (var httpClient = new HttpClient())
-            {
-                httpClient.DefaultRequestHeaders.Add("x-apikey", vtApiKey);
+        // Lưu vào database
+        await _context.Files.AddAsync(fileModel);
+        await _context.SaveChangesAsync();
 
-                var content = new MultipartFormDataContent();
-                content.Add(new StreamContent(memoryStream), "file", file.FileName);
-
-                var response = await httpClient.PostAsync(vtApiUrl, content);
-                response.EnsureSuccessStatusCode();
-
-                var responseBody = await response.Content.ReadAsStringAsync();
-                var jsonResponse = JsonDocument.Parse(responseBody);
-                var analysisId = jsonResponse.RootElement.GetProperty("data").GetProperty("id").GetString();
-
-                var analysisResponse = await httpClient.GetAsync($"https://www.virustotal.com/api/v3/analyses/{analysisId}");
-                var analysisBody = await analysisResponse.Content.ReadAsStringAsync();
-                var analysisJson = JsonDocument.Parse(analysisBody);
-
-                var dataElement = analysisJson.RootElement.GetProperty("data");
-
-                if (dataElement.TryGetProperty("attributes", out var outerAttributes))
-                {
-                    if (outerAttributes.TryGetProperty("results", out var results))
-                    {
-                        bool allUndetected = true;
-                        bool hasResults = results.ValueKind == JsonValueKind.Object;
-
-                        if (hasResults)
-                        {
-                            if (results.EnumerateObject().Count() == 0)
-                            {
-                                throw new IOException($"File '{file.FileName}' có thể chứa virus, không thể tải lên! (Kết quả phân tích rỗng.)");
-                            }
-
-                            foreach (var engine in results.EnumerateObject())
-                            {
-                                var category = engine.Value.GetProperty("category").GetString();
-
-                                if (category == "undetected" || category == "type-unsupported" || category == "harmless" || category == "timeout" || category == "failure" || category == "confirmed-timeout")
-                                {
-                                    continue;
-                                }
-                                else
-                                {
-                                    allUndetected = false;
-                                    throw new IOException($"File '{file.FileName}' có thể chứa virus, không thể tải lên!");
-                                }
-                            }
-                        }
-                        else
-                        {
-                            throw new IOException($"File '{file.FileName}' có thể chứa virus, không thể tải lên!");
-                        }
-
-                        if (allUndetected)
-                        {
-                            var filePath = Path.Combine(_fileStoragePath, file.FileName);
-
-                            if (File.Exists(filePath))
-                            {
-                                throw new IOException($"File '{file.FileName}' đã tồn tại.");
-                            }
-                            using (var fileStream = new FileStream(filePath, FileMode.Create))
-                            {
-                                memoryStream.Position = 0;
-                                await memoryStream.CopyToAsync(fileStream);
-                            }
-
-                            var fileType = FileTypeHelper.GetFileType(fileExtension);
-
-                            return new FileModel
-                            {
-                                FileName = file.FileName,
-                                FilePath = filePath,
-                                UploadedAt = DateTime.Now,
-                                FileSize = file.Length,
-                                FileType = fileType
-                            };
-                        }
-                        else
-                        {
-                            throw new IOException($"File '{file.FileName}' có thể chứa virus, không thể tải lên!");
-                        }
-                    }
-                    else
-                    {
-                        throw new Exception("results not found in the analysis response.");
-                    }
-                }
-                else
-                {
-                    throw new Exception("attributes not found in the analysis response.");
-                }
-            }
-        }
+        return fileModel;
     }
 
+    public async Task<FileModel> GetFileByIdAsync(int id)
+    {
+        return await _context.Files.FindAsync(id); // Lấy tệp theo ID từ database
+    }
 
-    // Xóa tệp theo ID
     public async Task<bool> DeleteFileAsync(int fileId)
     {
-        var files = await GetAllFilesAsync();
-        var file = files.FirstOrDefault(f => f.Id == fileId);
-
+        var file = await GetFileByIdAsync(fileId);
         if (file == null || !File.Exists(file.FilePath))
         {
-            return await Task.FromResult(false);
+            return false;
         }
 
         File.Delete(file.FilePath);
-        return await Task.FromResult(true);
+        _context.Files.Remove(file);
+        await _context.SaveChangesAsync();
+        return true;
     }
 
-    // Tải xuống tệp theo ID
     public async Task<Stream> DownloadFileAsync(int fileId)
     {
-        var files = await GetAllFilesAsync();
-        var file = files.FirstOrDefault(f => f.Id == fileId);
-
+        var file = await GetFileByIdAsync(fileId);
         if (file == null)
         {
             throw new FileNotFoundException("File not found.");
@@ -228,7 +110,11 @@ public class FileService : IFileService
         return new FileStream(file.FilePath, FileMode.Open, FileAccess.Read);
     }
 
-
-
+    public async Task<List<FileModel>> GetFilesByUserIdAsync(string userId)
+    {
+        return await _context.Files
+            .Where(file => file.UserId == userId)
+            .ToListAsync(); // Lấy tất cả các tệp của người dùng cụ thể
+    }
 
 }

@@ -1,6 +1,9 @@
 using FileSharingSystem.Data;
 using Microsoft.AspNetCore.Identity;
+using Microsoft.AspNetCore.Identity.UI.Services;
 using Microsoft.EntityFrameworkCore;
+using FileSharingSystem.Services; // Thêm dòng này
+
 
 var builder = WebApplication.CreateBuilder(args);
 
@@ -20,9 +23,13 @@ ConfigureIdentity(builder.Services);
 // Đăng ký dịch vụ MVC và Razor Runtime Compilation
 builder.Services.AddControllersWithViews().AddRazorRuntimeCompilation();
 builder.Services.AddDatabaseDeveloperPageExceptionFilter(); // Bộ lọc lỗi cho nhà phát triển
-
+builder.Services.AddTransient<FileSharingSystem.Services.IEmailSender, FileSharingSystem.Services.EmailSender>();// Đảm bảo bạn đã đăng ký dịch vụ gửi email
 // Đăng ký dịch vụ FileService
-builder.Services.AddScoped<IFileService>(provider => new FileService(fileStoragePath));
+builder.Services.AddScoped<IFileService>(provider =>
+{
+    var context = provider.GetRequiredService<ApplicationDbContext>(); // Lấy ApplicationDbContext từ DI container
+    return new FileService(fileStoragePath, context); // Khởi tạo FileService với cả fileStoragePath và context
+});
 
 // Cấu hình Authentication và Authorization
 builder.Services.AddAuthentication();
@@ -86,16 +93,4 @@ void ConfigureRoutes(WebApplication app)
 
     // Bật Razor Pages nếu sử dụng
     app.MapRazorPages();
-}
-
- void ConfigureServices(IServiceCollection services)
-{
-    services.AddControllersWithViews();
-
-    services.AddResponseCompression(options =>
-    {
-        options.EnableForHttps = true;
-    });
-
-    services.AddScoped<IFileService, FileService>(); // Đăng ký IFileService
 }

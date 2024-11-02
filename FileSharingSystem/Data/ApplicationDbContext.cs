@@ -11,6 +11,7 @@ namespace FileSharingSystem.Data
             : base(options)
         {
         }
+        public DbSet<FileModel> Files { get; set; }
         public DbSet<FileRecord> FileRecords { get; set; }
         protected override void OnModelCreating(ModelBuilder builder)
         {
