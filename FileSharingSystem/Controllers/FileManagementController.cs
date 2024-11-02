@@ -55,8 +55,12 @@ public class FileManagementController : Controller
     [HttpPost]
     public async Task<IActionResult> Upload(IFormFile file)
     {
+        // Maximum file size allowed (5MB)
+        const long MaxFileSize = 5 * 1024; // 5MB
+
         // Danh sách các phần mở rộng tệp không được phép tải lên
         var forbiddenExtensions = new[] { ".bat", ".sh", ".py" };
+
 
         // Kiểm tra tệp có được chọn không
         if (file == null || file.Length == 0)
@@ -65,6 +69,13 @@ public class FileManagementController : Controller
             // Lấy lại danh sách các tệp đã tải lên để hiển thị lại
             var model = await _fileService.GetAllFilesAsync();
             return View(model);
+        }
+
+        // Check if file exceeds the maximum file size
+        if (file.Length > MaxFileSize)
+        {
+            TempData["ErrorMessage"] = "Kích thước tệp vượt quá giới hạn 5KB.";
+            return RedirectToAction("Index", "Home"); // Redirect to HomeController's Index with an error message
         }
 
         // Kiểm tra phần mở rộng của tệp tải lên

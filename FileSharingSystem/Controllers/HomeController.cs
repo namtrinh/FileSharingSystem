@@ -18,7 +18,9 @@ namespace FileSharingSystem.Controllers
         public async Task<IActionResult> Index()
         {
             var model = await _fileService.GetAllFilesAsync();
+            ViewBag.ErrorMessage = TempData["ErrorMessage"];
             return View(model);
+
         }
 
         public IActionResult Privacy()
