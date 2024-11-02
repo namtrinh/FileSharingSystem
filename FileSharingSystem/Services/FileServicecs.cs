@@ -5,6 +5,8 @@ using System.Text.Json;
 using System.Threading.Tasks;
 using FileSharingSystem.Models;
 using Microsoft.AspNetCore.Http;
+using Microsoft.EntityFrameworkCore;
+using Org.BouncyCastle.Utilities;
 
 public interface IFileService
 {
@@ -12,6 +14,7 @@ public interface IFileService
     Task<FileModel> UploadFileAsync(IFormFile file);
     Task<bool> DeleteFileAsync(int fileId);
     Task<Stream> DownloadFileAsync(int fileId);
+    Task<FileModel> GetFileByIdAsync(int id);
 }
 
 public class FileService : IFileService
@@ -48,11 +51,50 @@ public class FileService : IFileService
         return await Task.FromResult(files);
     }
 
+    public async Task<FileModel> GetFileByIdAsync(int id)
+    {
+        var files = await GetAllFilesAsync(); // Lấy tất cả tệp
+        var file = files.FirstOrDefault(f => f.Id == id); // Tìm tệp theo ID
+
+        return file; // Trả về tệp hoặc null nếu không tìm thấy
+    }
+
+
     // Tải lên tệp
     public async Task<FileModel> UploadFileAsync(IFormFile file)
     {
         const string vtApiUrl = "https://www.virustotal.com/api/v3/files";
         const string vtApiKey = "15ea616156e895bce63de9ab04304951848fa73b3b653dd84c3f48e9e9fb9c18";
+
+        var allowedImageExtensions = new List<string> { ".jpg", ".jpeg", ".png", ".gif", ".bmp" };
+        var fileExtension = Path.GetExtension(file.FileName).ToLowerInvariant();
+
+        // Nếu là file hình ảnh, bỏ qua bước quét virus
+        if (allowedImageExtensions.Contains(fileExtension))
+        {
+            var filePath = Path.Combine(_fileStoragePath, file.FileName);
+
+            if (File.Exists(filePath))
+            {
+                throw new IOException($"File '{file.FileName}' đã tồn tại.");
+            }
+
+            using (var fileStream = new FileStream(filePath, FileMode.Create))
+            {
+                await file.CopyToAsync(fileStream);
+            }
+
+            var fileType = FileTypeHelper.GetFileType(fileExtension);
+
+            return new FileModel
+            {
+                FileName = file.FileName,
+                FilePath = filePath,
+                UploadedAt = DateTime.Now,
+                FileSize = file.Length,
+                FileType = fileType
+            };
+        }
 
         using (var memoryStream = new MemoryStream())
         {
@@ -77,13 +119,10 @@ public class FileService : IFileService
                 var analysisBody = await analysisResponse.Content.ReadAsStringAsync();
                 var analysisJson = JsonDocument.Parse(analysisBody);
 
-           
                 var dataElement = analysisJson.RootElement.GetProperty("data");
 
                 if (dataElement.TryGetProperty("attributes", out var outerAttributes))
                 {
-
-
                     if (outerAttributes.TryGetProperty("results", out var results))
                     {
                         bool allUndetected = true;
@@ -91,7 +130,6 @@ public class FileService : IFileService
 
                         if (hasResults)
                         {
-                            // Kiểm tra nếu không có kết quả nào
                             if (results.EnumerateObject().Count() == 0)
                             {
                                 throw new IOException($"File '{file.FileName}' có thể chứa virus, không thể tải lên! (Kết quả phân tích rỗng.)");
@@ -130,7 +168,7 @@ public class FileService : IFileService
                                 memoryStream.Position = 0;
                                 await memoryStream.CopyToAsync(fileStream);
                             }
-                            var fileExtension = Path.GetExtension(file.FileName).ToLowerInvariant();
+
                             var fileType = FileTypeHelper.GetFileType(fileExtension);
 
                             return new FileModel
@@ -151,7 +189,6 @@ public class FileService : IFileService
                     {
                         throw new Exception("results not found in the analysis response.");
                     }
-
                 }
                 else
                 {
@@ -160,6 +197,7 @@ public class FileService : IFileService
             }
         }
     }
+
 
     // Xóa tệp theo ID
     public async Task<bool> DeleteFileAsync(int fileId)

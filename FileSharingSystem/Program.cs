@@ -87,3 +87,15 @@ void ConfigureRoutes(WebApplication app)
     // Bật Razor Pages nếu sử dụng
     app.MapRazorPages();
 }
+
+ void ConfigureServices(IServiceCollection services)
+{
+    services.AddControllersWithViews();
+
+    services.AddResponseCompression(options =>
+    {
+        options.EnableForHttps = true;
+    });
+
+    services.AddScoped<IFileService, FileService>(); // Đăng ký IFileService
+}

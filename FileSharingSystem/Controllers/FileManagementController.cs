@@ -25,6 +25,33 @@ public class FileManagementController : Controller
         return View(model);
     }
 
+    public async Task<IActionResult> Open(int id)
+    {
+        try
+        {
+            // Tìm kiếm tệp dựa trên id
+            var file = await _fileService.GetFileByIdAsync(id);
+            if (file == null)
+            {
+                return NotFound(); // Trả về 404 nếu không tìm thấy tệp
+            }
+
+            // Lấy stream của tệp từ FileService
+            var fileStream = await _fileService.DownloadFileAsync(id);
+            var contentType = GetContentType(file.FileName);
+
+            // Trả về tệp với Content-Type
+            return File(fileStream, contentType);
+        }
+        catch (FileNotFoundException)
+        {
+            return NotFound();
+        }
+    }
+
+
+
+
     [HttpPost]
     public async Task<IActionResult> Upload(IFormFile file)
     {
