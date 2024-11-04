@@ -13,6 +13,7 @@ namespace FileSharingSystem.Data
         }
         public DbSet<FileModel> Files { get; set; }
         public DbSet<FileRecord> FileRecords { get; set; }
+        public DbSet<FileLog> FileLog { get; set; }
         protected override void OnModelCreating(ModelBuilder builder)
         {
             base.OnModelCreating(builder);
