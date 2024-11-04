@@ -36,18 +36,32 @@ public class FileManagementController : Controller
     {
         try
         {
-            // Tìm kiếm tệp dựa trên id
             var file = await _fileService.GetFileByIdAsync(id);
             if (file == null)
             {
-                return NotFound(); // Trả về 404 nếu không tìm thấy tệp
+                return NotFound();
+            }
+            var fileStream = await _fileService.DownloadFileAsync(id);
+            var contentType = GetContentType(file.FileName);        
+            var encodedFileName = Uri.EscapeDataString(Path.GetFileNameWithoutExtension(file.FileName)) + ".pdf";
+            if (contentType == "application/vnd.openxmlformats-officedocument.wordprocessingml.document" || contentType == "application/msword")
+            {
+                using (var memoryStream = new MemoryStream())
+                {
+                    await fileStream.CopyToAsync(memoryStream);
+                    memoryStream.Position = 0;
+
+                    var doc = new Aspose.Words.Document(memoryStream);
+                    var pdfStream = new MemoryStream();
+                    doc.Save(pdfStream, Aspose.Words.SaveFormat.Pdf);
+                    pdfStream.Position = 0;
+
+                    Response.Headers.Add("Content-Disposition", $"inline; filename=\"{encodedFileName}\"");
+                    return File(pdfStream, "application/pdf");
+                }
             }
 
-            // Lấy stream của tệp từ FileService
-            var fileStream = await _fileService.DownloadFileAsync(id);
-            var contentType = GetContentType(file.FileName);
-
-            // Trả về tệp với Content-Type
+            Response.Headers.Add("Content-Disposition", $"inline; filename=\"{encodedFileName}\"");
             return File(fileStream, contentType);
         }
         catch (FileNotFoundException)
@@ -57,14 +71,15 @@ public class FileManagementController : Controller
     }
 
 
+
     [HttpPost]
     public async Task<IActionResult> Upload(IFormFile file)
     {
         // Maximum file size allowed (5MB)
         const long MaxFileSize = 5 * 1024 * 1024; // 5MB
 
-        // Danh sách các phần mở rộng tệp không được phép tải lên
-        var forbiddenExtensions = new[] { ".bat", ".sh", ".py", ".exe" };
+        // Danh sách các phần mở rộng tệp được phép tải lên (hình ảnh, PDF, Word)
+        var allowedExtensions = new[] { ".jpg", ".jpeg", ".png", ".gif", ".pdf", ".docx", ".doc" };
 
         // Kiểm tra tệp có được chọn không
         if (file == null || file.Length == 0)
@@ -78,15 +93,15 @@ public class FileManagementController : Controller
         // Check if file exceeds the maximum file size
         if (file.Length > MaxFileSize)
         {
-            TempData["ErrorMessage"] = "Kích thước tệp vượt quá giới hạn 5KB.";
+            TempData["ErrorMessage"] = "Kích thước tệp vượt quá giới hạn 5MB.";
             return RedirectToAction("Index", "Home"); // Redirect to HomeController's Index with an error message
         }
 
         // Kiểm tra phần mở rộng của tệp tải lên
         var fileExtension = Path.GetExtension(file.FileName).ToLowerInvariant();
-        if (forbiddenExtensions.Contains(fileExtension))
+        if (!allowedExtensions.Contains(fileExtension))
         {
-            ModelState.AddModelError("", "Tệp này không được phép tải lên: .exe, .bat, .sh, .py không được phép.");
+            ModelState.AddModelError("", "Tệp này không được phép tải lên. Chỉ cho phép các định dạng: .jpg, .jpeg, .png, .gif, .pdf, .docx, .doc.");
             // Lấy lại danh sách các tệp đã tải lên để hiển thị lại
             var model = await _fileService.GetAllFilesAsync();
             return View(model);
@@ -105,27 +120,26 @@ public class FileManagementController : Controller
     {
         try
         {
-            // Tìm kiếm tệp dựa trên fileId
-            var files = await _fileService.GetAllFilesAsync();
-            var file = files.FirstOrDefault(f => f.Id == id);
-
+            var file = await _fileService.GetFileByIdAsync(id);
             if (file == null)
             {
-                return NotFound(); // Trả về 404 nếu không tìm thấy tệp
+                return NotFound();
             }
-
-            // Lấy stream của tệp từ FileService
             var fileStream = await _fileService.DownloadFileAsync(id);
             var contentType = GetContentType(file.FileName);
 
-            // Trả về tệp với Content-Type và tên tệp
-            return File(fileStream, contentType, file.FileName);
+            var encodedFileName = Uri.EscapeDataString(file.FileName);
+
+            Response.Headers.Add("Content-Disposition", $"attachment; filename=\"{encodedFileName}\"");
+
+            return File(fileStream, contentType);
         }
         catch (FileNotFoundException)
         {
             return NotFound();
         }
     }
+
 
     public async Task<IActionResult> Delete(int id)
     {
