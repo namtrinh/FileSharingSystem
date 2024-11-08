@@ -12,8 +12,8 @@ using Microsoft.EntityFrameworkCore.Storage.ValueConversion;
 namespace FileSharingSystem.Migrations
 {
     [DbContext(typeof(ApplicationDbContext))]
-    [Migration("20241104101341_InitialCreate")]
-    partial class InitialCreate
+    [Migration("20241107090047_AddFileCategoryToFileModel")]
+    partial class AddFileCategoryToFileModel
     {
         /// <inheritdoc />
         protected override void BuildTargetModel(ModelBuilder modelBuilder)
@@ -65,6 +65,10 @@ namespace FileSharingSystem.Migrations
                         .HasColumnType("int");
 
                     MySqlPropertyBuilderExtensions.UseMySqlIdentityColumn(b.Property<int>("Id"));
+
+                    b.Property<string>("FileCategory")
+                        .IsRequired()
+                        .HasColumnType("longtext");
 
                     b.Property<string>("FileName")
                         .IsRequired()

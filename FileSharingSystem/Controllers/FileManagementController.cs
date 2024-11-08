@@ -16,13 +16,30 @@ public class FileManagementController : Controller
         _fileService = fileService;
     }
 
-    public async Task<IActionResult> Index()
+    public async Task<IActionResult> Index(string searchQuery, string fileType)
     {
         var model = await _fileService.GetAllFilesAsync();
+
         if (model == null)
         {
             model = new List<FileModel>();
         }
+        foreach (var file in model)
+        {
+            file.FileCategory = FileTypeHelper.GetFileCategory(Path.GetExtension(file.FileName));
+        }
+        // Áp dụng bộ lọc tìm kiếm theo tên tệp nếu có
+        if (!string.IsNullOrEmpty(searchQuery))
+        {
+            model = model.Where(f => f.FileName.Contains(searchQuery, StringComparison.OrdinalIgnoreCase)).ToList();
+        }
+        // Áp dụng bộ lọc theo loại tệp nếu có
+        if (!string.IsNullOrEmpty(fileType))
+        {
+            model = model.Where(f => f.FileCategory == fileType).ToList();
+        }
+
+
         return View(model);
     }
     public async Task<IActionResult> UserFiles()
@@ -79,7 +96,30 @@ public class FileManagementController : Controller
         const long MaxFileSize = 5 * 1024 * 1024; // 5MB
 
         // Danh sách các phần mở rộng tệp được phép tải lên (hình ảnh, PDF, Word)
-        var allowedExtensions = new[] { ".jpg", ".jpeg", ".png", ".gif", ".pdf", ".docx", ".doc" };
+        var allowedExtensions = new[]
+{ 
+    // Image formats
+    ".jpg", ".jpeg", ".png", ".gif", 
+
+    // Document formats
+    ".pdf", ".docx", ".doc", ".xls", ".xlsx", ".txt", ".rtf", ".ppt", ".pptx", ".odt", ".ods", ".odp", 
+
+    // Audio formats
+    ".mp3", ".wav", ".aac", ".flac", ".ogg", ".wma", ".m4a", 
+
+    // Video formats
+    ".mp4", ".avi", ".mov", ".mkv", ".flv", ".wmv", ".mpeg", ".3gp", 
+
+    // Compressed/archive formats
+    ".zip", ".rar", ".7z", ".tar", ".gz", ".bz2", ".xz", 
+
+    // Font files
+    ".ttf", ".otf", ".woff", ".woff2", 
+
+    // Other common files
+    ".csv", ".ics", ".apk", ".iso"
+};
+
 
         // Kiểm tra tệp có được chọn không
         if (file == null || file.Length == 0)

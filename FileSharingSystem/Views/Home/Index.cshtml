@@ -1,5 +1,11 @@
 ﻿@model List<FileModel>
 @using System.Security.Claims
+@{
+    // Accessing the query parameter from the URL (e.g., ?search=somevalue)
+    var query = Context.Request.Query["searchQuery"];
+}
+
+
 <div class="container mt-5">
     <h2 class="text-center mb-4">Trang chủ - Danh sách tệp đã tải lên</h2>
 
@@ -32,16 +38,18 @@
                     </div>
                 </form>
 
-                <!-- Hiển thị thông báo lỗi ModelState -->
-                @if (!ViewData.ModelState.IsValid)
-                {
-                    <div class="alert alert-danger mt-2">
-                        @foreach (var error in ViewData.ModelState.Values.SelectMany(v => v.Errors))
-                        {
-                            <p>@error.ErrorMessage</p>
-                        }
+       
+            </div>
+
+            <!-- Form tìm kiếm -->
+            <div class="mb-4">
+                <h5 class="mb-3">Tìm kiếm tệp</h5>
+                <form asp-controller="Home" asp-action="Index" method="get">
+                    <div class="input-group">
+                        <input type="text" name="searchQuery" class="form-control" placeholder="Nhập tên tệp để tìm kiếm..." value="@query" />
+                        <button type="submit" class="btn btn-secondary">Tìm kiếm</button>
                     </div>
-                }
+                </form>
             </div>
         }
         else
@@ -70,30 +78,22 @@
             <div class="row">
                 @foreach (var file in Model)
                 {
-                       <div class="col-md-2 mb-6">
-                        <!-- Chuyển thành col-md-2 để có 6 cột trong mỗi hàng -->
+                    <div class="col-md-2 mb-6">
                         <div class="card shadow-sm" style="height: 250px;">
                             <a href="@Url.Action("Open", "FileManagement", new { id = file.Id })" class="btn btn-light mt-auto">
-                            <div class="card-body d-flex flex-column">
-                                <h6 class="card-title text-truncate">@file.FileName</h6>
-                                <p class="card-text small">
-                                    Ngày tải lên: @file.UploadedAt.ToString("dd/MM/yyyy HH:mm")<br />
-                                    Loại tệp: @file.FileType<br />
-                                    Kích thước: @FileSizeFormatter.FormatFileSize(file.FileSize)
-                                </p>
-
-                                @if (file.FileType == "application/pdf" || file.FileType == "application/docx" || file.FileType == "application/doc")
-                                {
-                                    <!-- Hiển thị trực tiếp file PDF -->
-                                    <iframe src="@Url.Action("OpenPdf", "FileManagement", new { id = file.Id })" style="width:100%; height:150px;" frameborder="0"></iframe>
-                                }
-                             
-                            
-                                
-
-                                <!-- Nút Tải xuống -->
+                                <div class="card-body d-flex flex-column">
+                                    <h6 class="card-title text-truncate">@file.FileName</h6>
+                                    <p class="card-text small">
+                                        Ngày tải lên: @file.UploadedAt.ToString("dd/MM/yyyy HH:mm")<br />
+                                        Loại tệp: @file.FileType<br />
+                                        Kích thước: @FileSizeFormatter.FormatFileSize(file.FileSize)
+                                    </p>
+                                    @if (file.FileType == "application/pdf" || file.FileType == "application/docx" || file.FileType == "application/doc")
+                                    {
+                                        <iframe src="@Url.Action("OpenPdf", "FileManagement", new { id = file.Id })" style="width:100%; height:150px;" frameborder="0"></iframe>
+                                    }
                                     <a href="@Url.Action("Download", "FileManagement", new { id = file.Id })" style="background-color:#CCCCCC" class="btn btn-light mt-2">Tải xuống</a>
-                            </div>
+                                </div>
                             </a>
                         </div>
                     </div>
@@ -106,11 +106,6 @@
         }
     </div>
 
-
-
-
-
-    <!-- Danh sách tệp của người dùng -->
     <!-- Danh sách tệp của người dùng -->
     <div id="userFiles" class="mt-4" style="display:none;">
         <h5 class="mb-3">Danh sách tệp của tôi</h5>
@@ -120,25 +115,21 @@
                 @foreach (var file in Model.Where(f => f.UserId == User.FindFirstValue(ClaimTypes.NameIdentifier)))
                 {
                     <div class="col-md-2 mb-6">
-                        <!-- Chuyển thành col-md-2 để có 6 cột trong mỗi hàng -->
                         <div class="card shadow-sm" style="height: 250px;">
                             <a href="@Url.Action("Open", "FileManagement", new { id = file.Id })" class="btn btn-light mt-auto">
-                            <div class="card-body d-flex flex-column">
-                                <h6 class="card-title text-truncate">@file.FileName</h6>
-                                <p class="card-text small">
-                                    Ngày tải lên: @file.UploadedAt.ToString("dd/MM/yyyy HH:mm")<br />
-                                    Loại tệp: @file.FileType<br />
-                                    Kích thước: @FileSizeFormatter.FormatFileSize(file.FileSize)
-                                </p>
-
-                                @if (file.FileType == "application/pdf" || file.FileType == "application/docx" || file.FileType == "application/doc")
-                                {
-                                    <!-- Hiển thị trực tiếp file PDF -->
-                                    <iframe src="@Url.Action("OpenPdf", "FileManagement", new { id = file.Id })" style="width:100%; height:150px;" frameborder="0"></iframe>
-                                }                            
-                                <!-- Nút Tải xuống -->
+                                <div class="card-body d-flex flex-column">
+                                    <h6 class="card-title text-truncate">@file.FileName</h6>
+                                    <p class="card-text small">
+                                        Ngày tải lên: @file.UploadedAt.ToString("dd/MM/yyyy HH:mm")<br />
+                                        Loại tệp: @file.FileType<br />
+                                        Kích thước: @FileSizeFormatter.FormatFileSize(file.FileSize)
+                                    </p>
+                                    @if (file.FileType == "application/pdf" || file.FileType == "application/docx" || file.FileType == "application/doc")
+                                    {
+                                        <iframe src="@Url.Action("OpenPdf", "FileManagement", new { id = file.Id })" style="width:100%; height:150px;" frameborder="0"></iframe>
+                                    }
                                     <a href="@Url.Action("Download", "FileManagement", new { id = file.Id })" style="background-color:#CCCCCC" class="btn btn-light mt-2">Tải xuống</a>
-                            </div>
+                                </div>
                             </a>
                         </div>
                     </div>
@@ -151,8 +142,8 @@
         }
     </div>
 
-
 </div>
+
 
 <!-- CSS -->
 <style>
