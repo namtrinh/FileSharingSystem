@@ -46,7 +46,30 @@ public class FileService : IFileService
         if (file == null || file.Length == 0)
             throw new ArgumentException("File is not valid.");
 
-        var allowedImageExtensions = new List<string> { ".jpg", ".jpeg", ".png", ".gif", ".bmp" };
+        var allowedExtensions = new[]
+{ 
+    // Image formats
+    ".jpg", ".jpeg", ".png", ".gif", 
+
+    // Document formats
+    ".pdf", ".docx", ".doc", ".xls", ".xlsx", ".txt", ".rtf", ".ppt", ".pptx", ".odt", ".ods", ".odp", 
+
+    // Audio formats
+    ".mp3", ".wav", ".aac", ".flac", ".ogg", ".wma", ".m4a", 
+
+    // Video formats
+    ".mp4", ".avi", ".mov", ".mkv", ".flv", ".wmv", ".mpeg", ".3gp", 
+
+    // Compressed/archive formats
+    ".zip", ".rar", ".7z", ".tar", ".gz", ".bz2", ".xz", 
+
+    // Font files
+    ".ttf", ".otf", ".woff", ".woff2", 
+
+    // Other common files
+    ".csv", ".ics", ".apk", ".iso"
+};
+
         var fileExtension = Path.GetExtension(file.FileName).ToLowerInvariant();
 
         // Tạo đường dẫn tệp
@@ -63,6 +86,7 @@ public class FileService : IFileService
         }
 
         var fileType = FileTypeHelper.GetFileType(fileExtension);
+        var fileCategory = FileTypeHelper.GetFileCategory(fileExtension);
         var fileModel = new FileModel
         {
             FileName = file.FileName,
@@ -70,7 +94,8 @@ public class FileService : IFileService
             UploadedAt = DateTime.Now,
             FileSize = file.Length,
             FileType = fileType,
-            UserId = userId // Gán ID người dùng
+            UserId = userId, // Gán ID người dùng
+            FileCategory = fileCategory // Set FileCategory here
         };
 
         // Lưu vào database
