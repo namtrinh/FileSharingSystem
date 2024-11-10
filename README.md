@@ -16,6 +16,9 @@
 +Xác Thực
 
            -Đăng kí tài khoản ( bao gồm gửi email xác nhận, khi nhấn vào link được gửi đến mail thì tài khoản mới được tạo )
+              * Lưu ý: kể từ lúc nhấn vào nút đăng ký người dùng có 5 phút để nhấn vào đường dẫn kích hoạt tài khoản được gửi qua email, 
+                         nếu quá thời gian này người dùng buộc phải đăng ký lại từ đầu.
+                         
            -Đăng nhập
 
 
