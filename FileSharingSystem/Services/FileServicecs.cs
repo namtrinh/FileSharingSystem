@@ -8,6 +8,10 @@ using Microsoft.AspNetCore.Http;
 using Microsoft.EntityFrameworkCore;
 using System.Net.Http;
 using FileSharingSystem.Data;
+using Microsoft.AspNetCore.Mvc;
+using System.Security.Policy;
+using System.Web.Http.ModelBinding;
+using Microsoft.AspNetCore.Identity;
 
 public interface IFileService
 {
@@ -141,5 +145,9 @@ public class FileService : IFileService
             .Where(file => file.UserId == userId)
             .ToListAsync(); // Lấy tất cả các tệp của người dùng cụ thể
     }
+
+
+   
+
 
 }

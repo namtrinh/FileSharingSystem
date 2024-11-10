@@ -1,6 +1,6 @@
 ﻿using System.Threading.Tasks;
 
-namespace FileSharingSystem.Services // Namespace phải khớp với EmailSender
+namespace FileSharingSystem.Services
 {
     public interface IEmailSender
     {

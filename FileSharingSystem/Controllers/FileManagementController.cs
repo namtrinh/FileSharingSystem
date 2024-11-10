@@ -18,7 +18,9 @@ public class FileManagementController : Controller
 
     public async Task<IActionResult> Index(string searchQuery, string fileType)
     {
-        var model = await _fileService.GetAllFilesAsync();
+
+        var userId = User.FindFirstValue(ClaimTypes.NameIdentifier); // Lấy ID người dùng từ Claims
+        var model = await _fileService.GetFilesByUserIdAsync(userId);
 
         if (model == null)
         {
@@ -44,9 +46,9 @@ public class FileManagementController : Controller
     }
     public async Task<IActionResult> UserFiles()
     {
-        var userId = User.FindFirstValue(ClaimTypes.NameIdentifier); // Lấy ID người dùng từ Claims
+        var userId = User.FindFirstValue(ClaimTypes.NameIdentifier); 
         var model = await _fileService.GetFilesByUserIdAsync(userId);
-        return View(model); // Trả về danh sách tệp của người dùng
+        return View(model); 
     }
 
     public async Task<IActionResult> Open(int id)
@@ -59,8 +61,8 @@ public class FileManagementController : Controller
                 return NotFound();
             }
             var fileStream = await _fileService.DownloadFileAsync(id);
-            var contentType = GetContentType(file.FileName);        
-            var encodedFileName = Uri.EscapeDataString(Path.GetFileNameWithoutExtension(file.FileName)) + ".pdf";
+            var contentType = GetContentType(file.FileName);
+            var encodedFileName = Uri.EscapeDataString(file.FileName);
             if (contentType == "application/vnd.openxmlformats-officedocument.wordprocessingml.document" || contentType == "application/msword")
             {
                 using (var memoryStream = new MemoryStream())
