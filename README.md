@@ -21,7 +21,9 @@
 
 +Trang chủ:
 
-           -Chia sẽ file: Cho phép các định dạng sau: // Image formats ".jpg", ".jpeg", ".png", ".gif",
+           -Chia sẽ file: Cho phép các định dạng sau: 
+                      // Image formats
+                      ".jpg", ".jpeg", ".png", ".gif",
            
                       // Document formats
                       ".pdf", ".docx", ".doc", ".xls", ".xlsx", ".txt", ".rtf", ".ppt", ".pptx", ".odt", ".ods", ".odp", 
@@ -52,18 +54,25 @@
                       -Video 
                       +Còn lại các định dạng khác cần tải về mới có thể xem
 
-+Quản lí file :
-
-           -Hiển thị file (chỉ hiển thị những file do người dùng đó chia sẽ, bao gồm thông tin ngày đăng tải, dung lượng, loại file)
++Quản lí file : 
+           * Lưu ý : Việc quản lí file chỉ được thực hiện với những file do chính người dùng đó đăng lên
+           -Hiển thị file (bao gồm thông tin ngày đăng tải, dung lượng, loại file)
+           
            -Phân loại file( hình ảnh, file tài liệu (pdf, docs, ecel)
+           
            -Xóa file
+           
            -Tải về file
+           
            -Tìm kiếm file theo tên
+           
            -Xem profile của bản thân
 
 +Quản lí tài khoản
-           -Xóa tài khoản ( xóa tất cả thông tin bao gồm đăng nhập, yêu cầu đăng kí lại nếu muốn dùng tài khoản đó),
+           -Xóa tài khoản ( xóa tất cả thông tin bao gồm đăng nhập, yêu cầu đăng kí lại nếu muốn dùng tài khoản đó)
+           
            -Đổi mật khẩu ( yêu cầu mật khẩu cũ còn hiệu lực)
+           
            -Đổi email
            
 
