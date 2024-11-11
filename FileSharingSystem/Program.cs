@@ -2,13 +2,15 @@ using FileSharingSystem.Data;
 using Microsoft.AspNetCore.Identity;
 using Microsoft.AspNetCore.Identity.UI.Services;
 using Microsoft.EntityFrameworkCore;
-using FileSharingSystem.Services; // Thêm dòng này
+using FileSharingSystem.Services;
+using IEmailSender = FileSharingSystem.Services.IEmailSender;
 
 
 var builder = WebApplication.CreateBuilder(args);
 
 // Đường dẫn lưu trữ tệp đã tải lên
-string fileStoragePath = Path.Combine(Directory.GetCurrentDirectory(), "UploadedFiles");
+string fileStoragePath = Path.Combine(Directory.GetCurrentDirectory(), "wwwroot", "UploadedFiles");
+
 
 // Lấy chuỗi kết nối từ appsettings.json
 var connectionString = builder.Configuration.GetConnectionString("DefaultConnection")
@@ -23,8 +25,7 @@ ConfigureIdentity(builder.Services);
 // Đăng ký dịch vụ MVC và Razor Runtime Compilation
 builder.Services.AddControllersWithViews().AddRazorRuntimeCompilation();
 builder.Services.AddDatabaseDeveloperPageExceptionFilter(); // Bộ lọc lỗi cho nhà phát triển
-builder.Services.AddTransient<FileSharingSystem.Services.IEmailSender, FileSharingSystem.Services.EmailSender>();// Đảm bảo bạn đã đăng ký dịch vụ gửi email
-// Đăng ký dịch vụ FileService
+
 builder.Services.AddScoped<IFileService>(provider =>
 {
     var context = provider.GetRequiredService<ApplicationDbContext>(); // Lấy ApplicationDbContext từ DI container
@@ -34,6 +35,18 @@ builder.Services.AddScoped<IFileService>(provider =>
 // Cấu hình Authentication và Authorization
 builder.Services.AddAuthentication();
 builder.Services.AddAuthorization();
+
+
+
+void ConfigureServices(IServiceCollection services)
+{
+    services.AddMemoryCache();
+}
+
+
+
+
+builder.Services.AddLogging();
 
 // Xây dựng ứng dụng
 var app = builder.Build();
@@ -54,12 +67,12 @@ void ConfigureDatabase(IServiceCollection services, string connectionString)
         options.UseMySql(connectionString, new MySqlServerVersion(new Version(8, 0, 40))));
 }
 
-void ConfigureIdentity(IServiceCollection services)
+void ConfigureIdentity(IServiceCollection services) 
 {
     services.AddDefaultIdentity<IdentityUser>(options =>
     {
-        options.SignIn.RequireConfirmedAccount = false; // Không yêu cầu xác nhận email
-        options.Password.RequiredLength = 6; // Mật khẩu tối thiểu 6 ký tự
+        options.SignIn.RequireConfirmedAccount = false; 
+        options.Password.RequiredLength = 6; 
     })
     .AddEntityFrameworkStores<ApplicationDbContext>(); // Sử dụng EF Core để lưu trữ dữ liệu
 }
@@ -68,17 +81,17 @@ void ConfigureMiddleware(WebApplication app)
 {
     if (app.Environment.IsDevelopment())
     {
-        app.UseMigrationsEndPoint(); // Cho phép chạy migration trong môi trường phát triển
+        app.UseMigrationsEndPoint(); 
     }
     else
     {
-        app.UseExceptionHandler("/Home/Error"); // Trang lỗi cho môi trường sản xuất
+        app.UseExceptionHandler("/Home/Error");
         app.UseHsts(); // Bảo mật HTTPS
     }
 
     app.UseHttpsRedirection(); // Chuyển hướng HTTP sang HTTPS
     app.UseStaticFiles(); // Sử dụng tệp tĩnh
-
+    
     app.UseRouting(); // Kích hoạt routing
     app.UseAuthentication(); // Sử dụng xác thực
     app.UseAuthorization(); // Sử dụng phân quyền

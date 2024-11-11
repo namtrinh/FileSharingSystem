@@ -41,7 +41,7 @@ namespace FileSharingSystem.Controllers
                 model = model.Where(f => f.FileCategory == fileType).ToList();
             }
 
-            return View("Index", model); // ??m b?o có view "Index" trong th? m?c Home
+            return View("Index", model); 
         }
 
 
@@ -55,6 +55,9 @@ namespace FileSharingSystem.Controllers
         {
             return View(new ErrorViewModel { RequestId = Activity.Current?.Id ?? HttpContext.TraceIdentifier });
         }
+
+
+
 
     }
 }
