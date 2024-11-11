@@ -90,68 +90,47 @@ public class FileManagementController : Controller
     }
 
 
-
     [HttpPost]
     public async Task<IActionResult> Upload(IFormFile file)
     {
-        // Maximum file size allowed (5MB)
         const long MaxFileSize = 5 * 1024 * 1024; // 5MB
-
-        // Danh sách các phần mở rộng tệp được phép tải lên (hình ảnh, PDF, Word)
         var allowedExtensions = new[]
-{ 
-    // Image formats
-    ".jpg", ".jpeg", ".png", ".gif", 
+        {
+        ".jpg", ".jpeg", ".png", ".gif", ".pdf", ".docx", ".doc", ".xls", ".xlsx", ".txt", ".rtf", ".ppt", ".pptx", ".odt", ".ods", ".odp",
+        ".mp3", ".wav", ".aac", ".flac", ".ogg", ".wma", ".m4a", ".mp4", ".avi", ".mov", ".mkv", ".flv", ".wmv", ".mpeg", ".3gp",
+        ".zip", ".rar", ".7z", ".tar", ".gz", ".bz2", ".xz", ".ttf", ".otf", ".woff", ".woff2",
+        ".csv", ".ics", ".apk", ".iso", ".exe"
+    };
 
-    // Document formats
-    ".pdf", ".docx", ".doc", ".xls", ".xlsx", ".txt", ".rtf", ".ppt", ".pptx", ".odt", ".ods", ".odp", 
-
-    // Audio formats
-    ".mp3", ".wav", ".aac", ".flac", ".ogg", ".wma", ".m4a", 
-
-    // Video formats
-    ".mp4", ".avi", ".mov", ".mkv", ".flv", ".wmv", ".mpeg", ".3gp", 
-
-    // Compressed/archive formats
-    ".zip", ".rar", ".7z", ".tar", ".gz", ".bz2", ".xz", 
-
-    // Font files
-    ".ttf", ".otf", ".woff", ".woff2", 
-
-    // Other common files
-    ".csv", ".ics", ".apk", ".iso"
-};
-
-
-        // Kiểm tra tệp có được chọn không
         if (file == null || file.Length == 0)
         {
-            ModelState.AddModelError("", "Vui lòng chọn tệp để tải lên.");
-            // Lấy lại danh sách các tệp đã tải lên để hiển thị lại
-            var model = await _fileService.GetAllFilesAsync();
-            return View(model);
+            TempData["ErrorMessage"] = "Vui lòng chọn tệp để tải lên.";
+            return RedirectToAction("Index", "Home");
         }
 
-        // Check if file exceeds the maximum file size
         if (file.Length > MaxFileSize)
         {
             TempData["ErrorMessage"] = "Kích thước tệp vượt quá giới hạn 5MB.";
-            return RedirectToAction("Index", "Home"); // Redirect to HomeController's Index with an error message
+            return RedirectToAction("Index", "Home");
         }
 
-        // Kiểm tra phần mở rộng của tệp tải lên
         var fileExtension = Path.GetExtension(file.FileName).ToLowerInvariant();
         if (!allowedExtensions.Contains(fileExtension))
         {
-            ModelState.AddModelError("", "Tệp này không được phép tải lên. Chỉ cho phép các định dạng: .jpg, .jpeg, .png, .gif, .pdf, .docx, .doc.");
-            // Lấy lại danh sách các tệp đã tải lên để hiển thị lại
-            var model = await _fileService.GetAllFilesAsync();
-            return View(model);
+            TempData["ErrorMessage"] = "Tệp này không được phép tải lên. Vui lòng chọn tệp có định dạng hợp lệ.";
+            return RedirectToAction("Index", "Home");
         }
 
-        var userId = User.FindFirstValue(ClaimTypes.NameIdentifier); // Lấy ID người dùng từ Claims
-        await _fileService.UploadFileAsync(file, userId); // Gọi UploadFileAsync với userId
-        TempData["SuccessMessage"] = "Đã cập nhật thành công tệp!";
+        try
+        {
+            var userId = User.FindFirstValue(ClaimTypes.NameIdentifier);
+            var uploadedFile = await _fileService.UploadFileAsync(file, userId);
+            TempData["SuccessMessage"] = $"{file.FileName} được xác nhận an toàn. Đã tải lên thành công !";
+        }
+        catch (Exception ex)
+        {
+            TempData["ErrorMessage"] = ex.Message; // Lưu thông báo lỗi vào TempData
+        }
         return RedirectToAction("Index", "Home");
     }
 
