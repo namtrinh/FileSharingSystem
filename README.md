@@ -3,7 +3,7 @@
 
            -Yêu cầu sử dụng Visual studio đã cài đặt ASP.NET and web development và hệ quản trị cơ sở dữ liệu Mysql
            -Dowload src và mở file FileSharingSystem.sln hoặc clone src từ github
-           -Nếu trong thư migrate có bất cứ file nào -> xóa
+           -Nếu trong thư mục migrate có bất cứ file nào -> xóa
            -Vào file appsetting.json cấu hình tài khoản mysql bao gồm username và password
            -Tạo sẳn database có tên là filesharingdb -> không cần tạo table
            -Tiến hành gõ lệnh trong: Tools/NuGet Packet Manager/Packet Manager Console
