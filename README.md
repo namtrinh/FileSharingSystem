@@ -7,8 +7,9 @@
            -Vào file appsetting.json cấu hình tài khoản mysql bao gồm username và password
            -Tạo sẳn database có tên là filesharingdb -> không cần tạo table
            -Tiến hành gõ lệnh trong: Tools/NuGet Packet Manager/Packet Manager Console
-           -Add-Migration InitialCreate
-           -Update-Database Sau khi migrate xong có thể tiến hành khởi động dự án
+                      + Add-Migration InitialCreate
+                      + Update-Database 
+           -Sau khi migrate xong có thể tiến hành khởi động dự án
 
 
 ####### Một số chức năng chính #######
