@@ -50,6 +50,56 @@
 
     <footer class="border-top footer text-muted">
         <div class="container">
+
+            @if (TempData["uploadinfo"] != null)
+            {
+        <div id="fixedNotification" class="fixed-notification">
+            <h2>SAFE</h2>
+            <h3>SCANNER BY VIRUSTOTAL</h3>
+        </div>
+            }
+
+<style>
+    /* Định dạng thông báo ghim ở góc trái dưới màn hình */
+    .fixed-notification {
+        position: fixed;
+        bottom: 20px;
+        left: 20px;
+        background-color: rgba(255, 255, 255, 0.9);
+        padding: 10px 20px;
+        border: 1px solid #00c853;
+        border-radius: 8px;
+        box-shadow: 0 2px 8px rgba(0, 0, 0, 0.2);
+        color: #00c853;
+        font-weight: bold;
+        text-align: center;
+        z-index: 1000;
+    }
+    .fixed-notification h2 {
+        margin: 0;
+        font-size: 1.5rem;
+    }
+    .fixed-notification h3 {
+        margin: 0;
+        font-size: 1rem;
+        color: #555;
+    }
+</style>
+
+<script>
+  
+    window.onload = function() {
+        const notification = document.getElementById("fixedNotification");
+        if (notification) {
+            setTimeout(function() {
+                notification.style.display = "none";
+            }, 10000);
+        }
+    };
+</script>
+
+
+
             &copy; 2024 - FileSharingSystem - <a asp-area="" asp-controller="Home" asp-action="Privacy">Privacy</a>
         </div>
     </footer>

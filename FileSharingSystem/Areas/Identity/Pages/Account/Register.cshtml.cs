@@ -52,7 +52,9 @@ namespace FileSharingSystem.Areas.Identity.Pages.Account
             [StringLength(100, ErrorMessage = "The {0} must be at least {2} and at max {1} characters long.", MinimumLength = 6)]
             [DataType(DataType.Password)]
             [Display(Name = "Password")]
+            [RegularExpression(@"^[^/?""'*&%]+$", ErrorMessage = "Password cannot contain special characters like / ? \" ' * & %")]
             public string Password { get; set; }
+
 
             [DataType(DataType.Password)]
             [Display(Name = "Confirm password")]
@@ -70,7 +72,16 @@ namespace FileSharingSystem.Areas.Identity.Pages.Account
             returnUrl ??= Url.Content("~/");
             if (ModelState.IsValid)
             {
-               var email = Input.Email ;
+
+                var existingUser = await _userManager.FindByEmailAsync(Input.Email);
+                if (existingUser != null)
+                {
+                    TempData["ErrorMessage"] = "This email is already associated with an account.";
+                    return Page();
+                }
+
+
+                var email = Input.Email ;
             
                 // Tạo mã xác nhận ngẫu nhiên (Code)
                 var code = Guid.NewGuid().ToString();
@@ -79,12 +90,11 @@ namespace FileSharingSystem.Areas.Identity.Pages.Account
                     _cache.Set(email.Trim(), data, TimeSpan.FromMinutes(5));
                     _logger.LogInformation($"Cache entry set for {Input.Email} at {DateTime.UtcNow}");
 
-                var callbackUrl = $"https://localhost:7066/Identity/Account/ConfirmEmail?email={Input.Email}&code={code}&returnUrl={returnUrl}";
+                var callbackUrl = $"https://trinhnam1-001-site1.ntempurl.com/Identity/Account/ConfirmEmail?email={Input.Email}&code={code}&returnUrl={returnUrl}";
 
 
                 try
                 {
-
                     MailMessage mailMessage = new MailMessage
                     {
                         From = new MailAddress("cunnconn01@gmail.com", "FireFlow"), // Đổi tên người gửi thành FireFlow

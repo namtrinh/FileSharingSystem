@@ -126,6 +126,8 @@ public class FileManagementController : Controller
             var userId = User.FindFirstValue(ClaimTypes.NameIdentifier);
             var uploadedFile = await _fileService.UploadFileAsync(file, userId);
             TempData["SuccessMessage"] = $"{file.FileName} được xác nhận an toàn. Đã tải lên thành công !";
+            TempData["uploadinfo"] = "SAFE" +
+                "SCANNER by VIRUSTOTAL";
         }
         catch (Exception ex)
         {
