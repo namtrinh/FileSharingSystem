@@ -25,6 +25,10 @@
 +Trang chủ:
 
            -Chia sẽ file: Cho phép các định dạng sau: 
+
+                      * Lưu ý : file sẽ được quét virus, vì là api free nên có thể yêu cầu quét sẽ bị cho vào hàng đợi,
+                      khi này người dùng cần chờ đến vài phút sau thì tiến hành upload lại file đó thì sẽ thành công.
+                      Lúc này sẽ thông báo là server quá tải.
                       // Image formats
                       ".jpg", ".jpeg", ".png", ".gif",
            
@@ -45,6 +49,11 @@
                   
                       // Other common files
                       ".csv", ".ics", ".apk", ".iso"
+
+                      +Nếu tải lên file thành công thì hiển thị thông báo kèm trạng thái góc dưới trái màn hình
+                      +Nếu file có virus thông báo không thành công và không tải lên file.
+
+                      
            -Hiển thị danh sách file từ nhiều người dùng ( bao gồm thông tin ngày đăng tải, dung lượng, loại file)
            
            -Hiển thị danh sách file bản thân người dùng đăng
