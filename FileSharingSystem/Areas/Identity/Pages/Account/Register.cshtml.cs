@@ -90,7 +90,7 @@ namespace FileSharingSystem.Areas.Identity.Pages.Account
                     _cache.Set(email.Trim(), data, TimeSpan.FromMinutes(5));
                     _logger.LogInformation($"Cache entry set for {Input.Email} at {DateTime.UtcNow}");
 
-                var callbackUrl = $"https://trinhnam1-001-site1.ntempurl.com/Identity/Account/ConfirmEmail?email={Input.Email}&code={code}&returnUrl={returnUrl}";
+                var callbackUrl = $"https://localhost:7066/Identity/Account/ConfirmEmail?email={Input.Email}&code={code}&returnUrl={returnUrl}";
 
 
                 try
