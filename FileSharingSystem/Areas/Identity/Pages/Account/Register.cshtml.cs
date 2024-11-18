@@ -48,12 +48,14 @@ namespace FileSharingSystem.Areas.Identity.Pages.Account
             [Display(Name = "Email")]
             public string Email { get; set; }
 
-            [Required]
-            [StringLength(100, ErrorMessage = "The {0} must be at least {2} and at max {1} characters long.", MinimumLength = 6)]
-            [DataType(DataType.Password)]
-            [Display(Name = "Password")]
-            [RegularExpression(@"^[^/?""'*&%]+$", ErrorMessage = "Password cannot contain special characters like / ? \" ' * & %")]
-            public string Password { get; set; }
+                   [Required]
+        [StringLength(100, ErrorMessage = "The {0} must be at least {2} and at max {1} characters long.", MinimumLength = 6)]
+        [DataType(DataType.Password)]
+        [Display(Name = "Password")]
+        [RegularExpression(@"^(?=.*[a-z])(?=.*[A-Z])(?=.*\W)(?!.*[/\""'*]).{6,}$",
+ErrorMessage = "Password must contain at least one uppercase letter, one lowercase letter, one special character, and must not contain special characters like / ? \" ' * & %.")]
+        public string Password { get; set; }
+
 
 
             [DataType(DataType.Password)]
